@@ -17,11 +17,11 @@
 
 #define MAX_LEN_BUFFER 3000
 
-unsigned char my_mac[6] = { 0xf2, 0x3c, 0x91, 0xdb, 0xc2, 0x98};
-unsigned char my_ip[4] = { 88, 80, 187, 84};
+unsigned char my_mac[6] = // 
+unsigned char my_ip[4] = //
 unsigned char broadcast_mac[6] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 unsigned char mask[4] = {255, 255, 255, 0};
-unsigned char gateway[4] = {88, 80, 187, 1};
+unsigned char gateway[4] = //
 
 int s; // socket
 struct sockaddr_ll sll;
@@ -47,8 +47,7 @@ struct ip_datagram
 	unsigned char protocol;
 	unsigned short int header_checksum;
 	unsigned char source_address[4];
-	unsigned char destination_address[4]; // it can be also unsigned int
-	// unsigned char options[3]; // we can play with these options, but they are not so used so for now let ignore them
+	unsigned char destination_address[4];
 	unsigned char payload[1];  
 };
 
@@ -75,15 +74,13 @@ struct arp_packet
 
 int are_equal(void * a1, void * a2, int size)
 {
-	// a cast is needed
 	char * a = (char *) a1;
 	char * b = (char *) a2;
-
 	int i;
 	for (i=0; i<size; i++)
 		if (a[i] != b[i])
 			return 0;
-	return 1; // True
+	return 1;
 }
 
 void printbuf(unsigned char* buffer, int size)
@@ -103,42 +100,34 @@ int resolve_mac(unsigned char * ip, unsigned char * mac)
 	arp = (struct arp_packet *) eth->payload;
 	arp->hardware_address = htons(1); 
 	arp->protocol_address = htons(0x0800);
-	arp->hardware_len = 6; // no htons because it is one byte
+	arp->hardware_len = 6;
 	arp->protocol_len = 4;
 	arp->arp_operation = htons(1);
-	
 	int i;
 	for(i=0; i<4; i++) arp->sender_ip_address[i] = my_ip[i];
 	for(i=0; i<6; i++) arp->sender_mac_address[i] = my_mac[i];
-	for(i=0; i<6; i++) arp->target_mac[i] = 0; // will be filled
-	for(i=0; i<4; i++) arp->target_ip[i] = ip[i]; // ip passed as parameter
-
+	for(i=0; i<6; i++) arp->target_mac[i] = 0;
+	for(i=0; i<4; i++) arp->target_ip[i] = ip[i];
 	for(i=0; i<6; i++) eth->destination_mac_address[i] = broadcast_mac[i];
 	for(i=0; i<6; i++) eth->source_mac_address[i] = my_mac[i];
-	eth->upper_layer_protocol = htons(0x0806); // arp request
-	
+	eth->upper_layer_protocol = htons(0x0806); 
 	printbuf(buffer, 14+sizeof(struct arp_packet));
-	
 	int n; 
 	int len = sizeof(struct sockaddr_ll);
 	bzero(&sll, len);
 	sll.sll_family = AF_PACKET;
 	sll.sll_ifindex = if_nametoindex("eth0");	
-
 	n = sendto(s, buffer, 14+sizeof(struct arp_packet), 0, (struct sockaddr *) &sll, len);
 	if (n == -1) { perror("Sendto failed. Return."); return -1; }
-	
 	int k;
-	for (k=0; k<100; k++) // a "while" loop
+	for (k=0; k<100; k++)
 	{
 		n = recvfrom(s, buffer, MAX_LEN_BUFFER, 0, (struct sockaddr *) &sll, &len);
-		// in sendto we put 'len' but in recvfrom we put '&len' because in that case it can be modified.
 		if (ntohs(eth->upper_layer_protocol) == 0x0806)
 		{
 			if (are_equal(ip, arp->sender_ip_address, 4))
 			{
-				for (i=0; i<6; i++) mac[i] = arp->sender_mac_address[i]; 
-				// because now the sender is the host that sends the arp response to us!
+				for (i=0; i<6; i++) mac[i] = arp->sender_mac_address[i];
 				return 0;
 			}
 		}	
@@ -154,25 +143,16 @@ unsigned short int checksum(unsigned char * ip, int header_length)
 	unsigned short int prev = 0;
 	for (i=0; i<header_length/2; i++)
 	{
-		total += ntohs(p[i]); // htons or ntohs is the same thing. We only have to swap
-		// to check the carry we can use 32 bits length, but let's suppose that we do not have such words
+		total += ntohs(p[i]);
 		if (total < prev) total++;
 		prev = total;
-		// a smart way to check the carry and perform one's complement sum	
 	}
 	if (i*2 != header_length) 
 	{
-		total += ip[header_length-1]<<8; // because ip[header_length-1] is a byte, while total is a short int
-		// we can also do total += htons(p[header_length/2] & 0xff00);
+		total += ip[header_length-1]<<8; 
 		if (total < prev) total++; 
 	}
-	// we have to return the one's complement of the result, it can be done using the tilde operator
-	// otherwise we can do so
 	return (0xffff - total);
-	// we are just returning a value, so we DO NOT CHANGE THE ENDIANESS! 
-	// we do not return htons((0xffff-total));
-	// because this is only a method, not a packet writer
-	// but remember to change the endianness on the returned value once called this method
 }
 
 void forge_icmp_echo(struct icmp_packet * icmp, int size_of_payload )
@@ -180,32 +160,28 @@ void forge_icmp_echo(struct icmp_packet * icmp, int size_of_payload )
 	icmp->type = 8;
 	icmp->code = 0;
 	icmp->checksum = htons(0);
-	icmp->identifier = htons(0x1234); // arbitrary pattern that can be recognise easily
+	icmp->identifier = htons(0x1234);
 	icmp->sequence_number = htons(1);
-	
 	int i;
-	for (i=0; i< size_of_payload; i++) icmp->payload[i] = i & 0xff; // a typical pattern. The and is done to not exceed the size
-	
-	icmp->checksum = htons(checksum((unsigned char *) icmp, 8+size_of_payload)); // 8 + size_of_payload	
+	for (i=0; i< size_of_payload; i++) icmp->payload[i] = i & 0xff; 
+	icmp->checksum = htons(checksum((unsigned char *) icmp, 8+size_of_payload));
 }
 
 void forge_ip(struct ip_datagram * ip, int payloadsize, char proto, unsigned int target_ip, int timetolive)
 {
-	ip->version_ihl = 0x45; // no htons 
-	ip->type_of_service = 0; // useless 
-	ip->total_length = htons(20 + payloadsize); // 20 for the header and payloadsize is the size passed as a parameter, because we don't know
-	ip->identification = htons(0xabcd); // arbitrary
-	ip->flags_offset = htons(0x4000);
+	ip->version_ihl = 0x45;
+	ip->type_of_service = 0; 
+	ip->total_length = htons(20 + payloadsize); 
+	ip->identification = htons(0xabcd); 
+	ip->flags_offset = htons(0x4000); // DF=1
 	ip->time_to_live = timetolive;
 	ip->protocol = proto; 
-	ip->header_checksum = htons(0); // "before computing the checksum" - rfc
-	
+	ip->header_checksum = htons(0); 
 	int i;
 	unsigned char * target_ip_address;
 	target_ip_address = (unsigned char *) &target_ip;
 	for (i=0; i<4; i++) ip->source_address[i] = my_ip[i];
 	for (i=0; i<4; i++) ip->destination_address[i] = target_ip_address[i];
-
 	ip->header_checksum = htons(checksum((unsigned char *) ip, 20));
 }
 
@@ -213,9 +189,6 @@ void forge_eth(struct ethernet_frame * eth, unsigned char * dest, unsigned short
 {
 	int i;
 	for (i=0; i<6; i++) eth->destination_mac_address[i] = dest[i];
-	// otherwise we can do: memcpy(eth->destination_mac_address, dest, 4); that is the same but in only one line!
-	// on man memcpy we can see that memcpy(dest, src, size) performs in that way
-	// se also have to include <string.h> that is different from <strings.h>
 	for (i=0; i<6; i++) eth->source_mac_address[i] = my_mac[i]; 
 	eth->upper_layer_protocol = htons(ulp);
 }
@@ -223,43 +196,32 @@ void forge_eth(struct ethernet_frame * eth, unsigned char * dest, unsigned short
 int main(int argc, char** argv)
 {
 	int n, t, len, k;
-	s = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)); // packet socket
+	s = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 	if (s == -1) { perror("Socket failed. Return."); return -1; }
-	
-	// struct sockaddr_ll sll already defined 
 	len = sizeof(struct sockaddr_ll);
 	bzero(&sll, len); 
 	sll.sll_family = AF_PACKET;
 	sll.sll_ifindex = if_nametoindex("eth0");
-	
 	unsigned char buffer[MAX_LEN_BUFFER];
-	
-	// resolve mac and print
-	unsigned char target_ip[4] = { 99, 77, 148, 0 }; //{88, 80, 187, 10}; // 
+	unsigned char target_ip[4] = { 99, 77, 148, 0 }; // an arbitrary target ip
 	unsigned char target_mac[6];
-	
 	printf("Target address: %d.%d.%d.%d \n", target_ip[0], target_ip[1], target_ip[2], target_ip[3]);
-	
-	// the target is in my own network?
 	if (((*(unsigned int*)target_ip) & (*(unsigned int*)mask)) == ((*(unsigned int*)my_ip) & (*(unsigned int*)mask)))
 	{
 		t = resolve_mac(target_ip, target_mac);
 		printf("Target in my LAN.\n");
 	}
-	
 	else
 	{
 		t = resolve_mac(gateway, target_mac);
 		printf("Target is external.\n");
 	}
-		
 	if (t == -1) { perror("Resolve mac failed. Return."); return -1; }
 	
 	printf("Resolved mac: ");
 	printbuf(target_mac, 6);
 	printf("\n");
 
-	// packets
 	struct ethernet_frame * eth;
 	struct ip_datagram * ip;
 	struct icmp_packet * icmp;
@@ -267,7 +229,6 @@ int main(int argc, char** argv)
 	eth = (struct ethernet_frame *) buffer;	
 	ip = (struct ip_datagram *) eth->payload;
 	icmp = (struct icmp_packet *) ip->payload;
-	// in this way we know how to put every byte in our structure! Very light operation for the system
 	
 	int icmp_payload_size = 20; // default
 	int timetolive = 128; // default
@@ -284,13 +245,8 @@ int main(int argc, char** argv)
 	
 	printf("payload size: %d\n", icmp_payload_size);
 	forge_icmp_echo(icmp, icmp_payload_size);
-	forge_ip(ip, 8 + icmp_payload_size, 1, *(unsigned int *) target_ip, timetolive); // proto = 1 according to iana.org/assignments/protocol-numbers
-	forge_eth(eth, target_mac, 0x0800); // because the ulp is ip
-	// I can put target_ip in forge_ip and modify the method in order to accept (unsigned char *) target_ip
-	
-	// printbuf to check if the packet is well formed before sending it in the net
-	//printf("Sent the following buffer:\n");
-	//printbuf(buffer, 42 + icmp_payload_size); // 14 for the eth header, 20 for the ip header, 8 for the icmp header, icmp_payload_size for the icmp payload	
+	forge_ip(ip, 8 + icmp_payload_size, 1, *(unsigned int *) target_ip, timetolive);
+	forge_eth(eth, target_mac, 0x0800);
 	printf("Buffer sent.\nip->total_length = %d.\n", 14 + 28 + icmp_payload_size);
 	
 	t = sendto(s, buffer, 42 + icmp_payload_size, 0, (struct sockaddr *) &sll, len);
@@ -305,9 +261,7 @@ int main(int argc, char** argv)
 				if (ip->protocol == 1)
 					if (icmp->type == 0 && ntohs(icmp->identifier) == 0x1234 && ntohs(icmp->sequence_number) == 1)
 					{
-						//printbuf(buffer, 42 + icmp_payload_size); 
 						printf("Just received a packet with ip->total_length = %d\n", 14+ntohs(ip->total_length));
-						//printf("time to live: %d\n", ip->time_to_live);
 						break;
 					}
 	}

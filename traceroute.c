@@ -1,12 +1,12 @@
 /*
-	Build a traceroute modifying the ip.c program:	
+	Build a traceroute modifying the ip.c program:
 	send an echo request message
 	starting from time_to_live = 1 and increasing it.
 	Wait for the reply and detect who has sent it.
-	If the time_to_live becomes 0 before reaching the destination (the target ip) 
-	the node at which this happened hopefully sends a Time Exceeded reply. 
-	NOTE that since icmp is used for diagnostics, this reply serive is not mandatory 
-	and the node may not reply. 
+	If the time_to_live becomes 0 before reaching the destination (the target ip)
+	the node at which this happened hopefully sends a Time Exceeded reply.
+	NOTE that since icmp is used for diagnostics, this reply serive is not mandatory
+	and the node may not reply.
 	For this reason, in this version of the exercise, the chosen target ip is 8.8.8.8, that replies for sure!
 */
 
@@ -275,6 +275,11 @@ int main(int argc, char** argv)
 					{	
 						printf("Echo Reply.\n");
 						printf("Minimum time to live to reach the desired destination = %d.\n", timetolive);
+						printf("Residual time to live from the sender to us = %d\n", ip->time_to_live);
+						printf("So, supposing that the sender has set time_to_live = 128, the path in the backward trip is %d.\n", 128 - ip->time_to_live);
+						// and supposing that the time_to_live is a power of 2, is not difficult to estimate the path in a more general case
+						if (128 - ip->time_to_live != timetolive) printf("The packet does a different backward trip!\n");
+						// and note that even if 128 - ip->time_to_live == timetolive we are not sure that the packet does the same trip when we are sending it or when the remote host sends it.
 						printf("Note: ONLY in this case the icmp sequence number is %d and the icmp identifier is (hex) %x. In previous cases they were both 0.\n", ntohs(icmp->sequence_number), ntohs(icmp->identifier));
 						return 0;
 					}

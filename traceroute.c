@@ -1,5 +1,6 @@
 /*
-	Build a traceroute:	send an echo request message
+	Build a traceroute modifying the ip.c program:	
+	send an echo request message
 	starting from time_to_live = 1 and increasing it.
 	Wait for the reply and detect who has sent it.
 	If the time_to_live becomes 0 before reaching the destination (the target ip) 

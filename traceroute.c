@@ -280,5 +280,10 @@ int main(int argc, char** argv)
 					while_condition = 0;
 				}
 		}
+		if (timetolive == 128)
+		{
+			printf("Max time to live reached (128). Return.\n");
+			return 0;
+		}
 	}
 }
